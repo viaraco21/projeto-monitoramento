@@ -1,0 +1,181 @@
+Monitoramento1
+Projeto: Monitoramento Web em Container Docker
+Aqui está um guia detalhado para você criar um agente de monitoramento web em Docker, que realiza:
+
+Teste de Ping (latência e perda de pacotes)
+Teste de Tempo de Carregamento e Código de Retorno HTTP
+Para os sites:
+google.com
+youtube.com
+rnt.br
+
+1. Tecnologias sugeridas
+Python (por ser simples, multiplataforma e com ótimas bibliotecas para ambos os testes)
+Docker (para conteinerização)
+Bibliotecas Python:
+ping3 (testes de ping)
+requests (requisições HTTP)
+time (medir tempo de carregamento)
+
+ Estrutura do Código
+
+import time
+import requests
+from ping3 import ping
+
+# URLs para teste
+URLS = ["https://google.com", "https://youtube.com", "https://rnt.br"]
+
+def testar_ping(host, count=4):
+    latencias = []
+    perdidos = 0
+    for _ in range(count):
+        rtt = ping(host, unit='ms')
+        if rtt is not None:
+            latencias.append(rtt)
+        else:
+            perdidos += 1
+        time.sleep(1)
+    perda_pct = (perdidos / count) * 100
+    media_rtt = sum(latencias) / len(latencias) if latencias else None
+    return media_rtt, perda_pct
+
+def testar_http(url):
+    try:
+        inicio = time.time()
+        resp = requests.get(url, timeout=10)
+        duracao = time.time() - inicio
+        return resp.status_code, duracao
+    except requests.exceptions.RequestException as e:
+        return str(e), None
+
+def run_tests():
+    print("== Teste de Ping ==")
+    for url in URLS:
+        host = url.replace("https://", "").replace("http://", "").split("/")[0]
+        rtt, perda = testar_ping(host)
+        print(f"{host}: RTT médio = {rtt:.2f}ms, Perda = {perda:.1f}%")
+    print("\n== Teste HTTP ==")
+    for url in URLS:
+        status, tempo = testar_http(url)
+        print(f"{url} - Código: {status}, Tempo de carregamento: {tempo:.2f}s" if tempo else f"{url} - Erro: {status}")
+
+if __name__ == "__main__":
+    run_tests()
+
+Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY monitor.py /app/monitor.py
+
+RUN pip install ping3 requests
+
+CMD ["python", "monitor.py"]
+
+Salve o script Python como monitor.py.
+
+Montando e Executando
+
+docker build -t monitoramento-web .
+
+Run
+docker run --rm monitoramento-web
+
+5. Melhorias Possíveis
+Exportar resultados em formato JSON/CSV para integração com outras ferramentas
+Enviar alertas por e-mail ou webhook (Slack, etc.)
+Executar periodicamente (cron ou processo interno)
+Disponibilizar uma API para expor os resultados (Flask/FastAPI)
+Gravar logs
+
+Resumo
+Com este agente, você faz um monitoramento básico de latência, perda de pacotes e status/tempo de resposta HTTP dos sites desejados, tudo rodando dentro de um container Docker para portabilidade e facilidade de deploy.
+
+**********banco
+comando para entrar no banco
+docker exec -it src-postgres_webmonitor-1 bash
+
+comando para entrar no banco
+psql -h localhost -U monitoruser -d monitor
+
+comando para acessar direto
+docker exec -e PGPASSWORD=monitorpw -it src-postgres_webmonitor-1 psql -h localhost -U monitoruser -d monitor -c "\dt"
+
+SELECT * FROM resultados;
+
+*********Monitoramento2
+docker compose up --build
+
+docker run --name monitoramento-db ...
+
+docker run --rm --network monitoramento-net -e DB_HOST=monitoramento-db monitoramento-web
+
+********aplicação
+comando para entrar no container da aplicação
+docker exec -it src-webmonitor_agent-1 bash
+# dentro do container, rode:
+python monitor.py
+
+*****Grafana
+
+3. Acesse o Grafana
+Abra o navegador e acesse: 
+localhost
+Usuário e senha padrão:
+Username: admin
+Password: admin
+(Você pode ser solicitado a trocar a senha no primeiro login.)
+4. Adicione o PostgreSQL como Data Source no Grafana
+No menu lateral, clique na engrenagem (⚙️) → Data Sources.
+Clique em Add data source.
+Escolha PostgreSQL.
+Configure assim:
+
+Host: postgres_webmonitor:5432
+Database: monitor
+User: monitoruser
+Password: monitorpw
+SSL Mode: disable (para desenvolvimento)
+Test the connection e salve.
+
+5. Crie um Dashboard e Painel
+No menu lateral, clique no ícone de + → Dashboard.
+
+Clique em Add new panel.
+
+Escolha o Data Source criado (PostgreSQL).
+
+Digite sua query SQL para exibir os dados (exemplo):
+
+sql
+Copiar
+SELECT
+  time_column AS "time",
+  valor
+FROM
+  resultados
+ORDER BY time_column
+
+*******monitoramento3
+
+docker-compose up --build
+docker-compose down
+docker-compose build
+docker-compose up
+
+http://localhost:5000/registros
+
+curl -X POST http://localhost:5000/importa_api
+
+ver logs
+docker logs src-app-1
+
+comando para entrar no container
+docker exec -it src-app-1 /bin/bash
+
+
+
+
+

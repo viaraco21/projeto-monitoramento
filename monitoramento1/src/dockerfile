@@ -1,0 +1,9 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY monitor.py /app/monitor.py
+
+RUN pip install ping3 requests
+
+CMD ["python", "monitor.py"]
